@@ -1,0 +1,313 @@
+<!DOCTYPE html >
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Art Planet Admin v1.0</title>
+<link rel="stylesheet" href="css/jquery.ui.all.css">
+<style>
+	html {
+		margin: 10px;
+		padding: 10px;
+	}
+	body {
+		font-size: 62.5%; /*所有的字体都减小*/
+	}
+	h1 {
+		color:#5999DE;
+		text-align:center;
+		font-size: 2.4em;
+		margin: .6em 0;
+	}	
+	h2 {
+		color:#666666;
+		text-align:center;
+	}
+	form.outter {		
+		margin:auto;/*center the form*/
+		padding-top:5px;
+		min-width: 300px;
+		max-width: 500px;
+		width: 400px;
+		border:1px solid #ccc;
+		background-color:#d5e4f3;
+	}
+	form.opened{
+		width: 250px;
+		height: 150px;
+		padding: 0;
+	}
+	label {
+		color:#666666;
+		float: left;
+		width: 60px;/* 这个宽度很重要啊，否则对不齐了，包括弹出的窗口*/
+		padding: 0;
+		margin-top:4px;
+		text-align: right;
+	}
+	input {
+		padding: 1px; /* 越大高度越高*/
+		margin-top:0px;
+		margin-left:10px;/* a blank between label and input*/
+		width: 250px;
+	}
+	input:required {outline: 1px blue solid; color:red;}/* 为特定属性加样式 */
+	input.short { margin-bottom:4px; width:130px; padding: 2px; }
+	
+	select {
+		margin-left:10px;/* a blank between label and input*/
+		width: 100px;
+	}
+	textarea {
+		width: 250px;
+		height: 100px;
+		max-width: 300px;
+		max-height: 100px;
+		margin-left:10px;
+		padding: 2px; 
+		resize: none;
+	}	
+	
+
+	.validateTips { border: 1px solid transparent; padding: 0.3em; }	
+	
+	.entry {
+		margin-top:.5em;
+		margin-bottom:.5em;
+	}
+	.button {
+		padding-left:260px;
+		padding-bottom:5px;
+		padding-top:5px;
+	}
+	.addcity {
+		padding-left:2px;			
+	}
+		
+</style>
+	<script src="jquery/jquery-1.7.2.min.js"></script>
+	<script src="jquery/ui/jquery.ui.core.js"></script>
+	<script src="jquery/ui/jquery.ui.widget.js"></script>
+	<script src="jquery/ui/jquery.ui.datepicker.js"></script>
+	<script src="jquery/ui/jquery.ui.mouse.js"></script>
+	<script src="jquery/ui/jquery.ui.button.js"></script>
+	<script src="jquery/ui/jquery.ui.draggable.js"></script>
+	<script src="jquery/ui/jquery.ui.position.js"></script>
+	<script src="jquery/ui/jquery.ui.resizable.js"></script>
+	<script src="jquery/ui/jquery.ui.dialog.js"></script>
+	<script src="jquery/ui/jquery.effects.core.js"></script>
+<script>
+
+	//main function...
+	$(function() {
+		
+		//fill country/city select options...
+		var americaCN = "美国", americaEN = "america";
+		var germanCN = "德国", germanEN = "german";
+		$("#country").append("<option value="+americaEN+">"+americaCN+"</option>");
+		$("#country").append("<option value='german'>德国</option>");
+		
+		
+		//create datepicker components...
+		$( "#datepicker_start" ).datepicker();
+		$( "#datepicker_start" ).datepicker("option", "dateFormat","yy-mm-dd");
+		$( "#datepicker_end" ).datepicker();
+		$( "#datepicker_end" ).datepicker("option", "dateFormat","yy-mm-dd");
+		
+		//art event form elements...
+		var eventtitle = $("#eventtitle"), country = $("#country"), city = $("#city"), datepicker_start = $("#datepicker_start"),
+		datepicker_end = $("#datepicker_end"), organization = $("#organization"), url = $("#url"), description = $("#description"); 
+				
+		//sending art event to backend...
+		$("#submit").click(function(){
+			//提交
+			createArtEvent(eventtitle.val(),country.val(),city.val(),datepicker_start.val(),datepicker_end.val(),organization.val(),url.val(),description.val());
+			//清空表单
+			clearFormInputs(eventtitle,country,city,datepicker_start,datepicker_end,organization,url,description);
+			//show the loading image...
+			$('#subm').attr("style","visibility:visible");
+		});
+		
+		
+		//dialog used form elements...
+		var countryCN = $( "#countryCN" ), countryEN = $( "#countryEN" ),
+		cityCN = $( "#cityCN" ), cityEN = $( "#cityEN" ), longitude = $( "#longitude" ), latitude = $( "#latitude" );
+		
+		//initialize dialog interaction...
+		$( "#dialog-form" ).dialog({
+			autoOpen: false,
+			height: 310,
+			width: 280,
+			modal: true,
+			resizable: false,
+			buttons: {
+				"添加": function() {
+					//获取表单输入字符串					
+					//FIXME, submit immediately right now...
+					createCityofCountry(countryCN.val(),countryEN.val(),cityCN.val(),cityEN.val(),longitude.val(),latitude.val());					
+					//清空输入内容					
+					clearFormInputs(countryCN,countryEN,cityCN,cityEN,longitude,latitude);					
+					//show progress bar...
+					$(".ui-dialog-buttonpane").append('<p id="loadingtxt" style="text-align:center;">loading...</p>');					
+					
+					//close dialog
+					//$( this ).dialog( "close" );
+				},
+				"关闭": function() {
+					$( this ).dialog( "close" );
+					$("#loadingtxt").remove();
+				}
+			},//end of buttons
+			close: function() {
+				
+			}
+		});//end of dialog controling...
+
+		//create button skin and event...
+		$( "#create-city" )
+			.button()
+			.click(function() {
+				$( "#dialog-form" ).dialog( "open" );				
+			});//open dialog...				
+		
+		
+	});//end of js main function...
+	
+	//TODO, submit to backend...
+	function createCityofCountry(cntrCN, cntrEN, cityCN, cityEN, lon, lat){
+		console.log(cntrCN);
+		console.log(cntrEN);
+		console.log(cityCN);
+		console.log(cityEN);
+		console.log(lon);
+		console.log(lat);
+		
+		//TO SEND TO BACKEND...
+		console.log("saving city to backend...");
+		
+	}
+	
+	//TODO, submit the art event...
+	function createArtEvent(eventtitle,country,city,start,end,organization,url,description){
+		console.log(eventtitle);
+		console.log(country);
+		console.log(city);
+		console.log(start);
+		console.log(end);
+		console.log(organization);
+		console.log(url);
+		console.log(description);
+		
+		console.log("send art event details...");	
+		
+	}
+	
+	//清除方法中所有输入元素的内容，在提交之后
+	function clearFormInputs(){
+		var params = arguments;		
+		for(var i=0; i<params.length; i++){
+			//clear input value...
+			params[i].attr("value", "");
+		}
+	}
+	
+</script>
+</head>
+<body>
+
+<h1>艺术星球后台管理 v1.0</h1>
+<h2>2012/06/12</h2><br/>
+<!-- start of form, prevent the form auto submit -->
+<form class="outter" onsubmit="return false;">
+<fieldset>
+<legend>新增艺术事件:</legend>
+    <!-- entry end -->
+    <div class="entry">
+        <label for="eventtitle">事件名称 </label>
+        <!-- 这里定义HTML5新属性：autofocus required，其样式见上 -->
+        <input id="eventtitle"  name= "eventtitle" type="text" autofocus required>
+    </div>
+    <!-- entry end -->
+    <div class="entry" >
+        <label for="country">地点</label>
+        <select id="country">
+			<option value="china">中国</option>			
+		</select>		
+        <select id="city">
+			<option value="beijing">北京</option>
+			<option value="saab">Saab</option>
+			<option value="fiat">Fiat</option>
+			<option value="audi">Audi</option>
+		</select>
+		<img id="create-city" alt="opencity window" src="icons/add.png" class="addcity"></img>
+    </div>
+    <!-- entry end -->
+    <div class="entry">
+        <label for="datepicker_start">开始时间</label>
+        <input id="datepicker_start" name="datepicker_start" type="text" >
+    </div>
+    <div class="entry">
+    	<label for="datepicker_end">结束时间</label>
+        <input id="datepicker_end" name="datepicker_end" type="text" >
+    </div>
+    <!-- entry end -->
+    <div class="entry">
+        <label for="organization">举办方</label>
+        <input id="organization"  name="organization" type="text">
+    </div>
+    <!-- entry end -->
+    <div class="entry">
+        <label for="url">官方地址</label>
+        <input id="url"  name="url" type="text">
+    </div>     
+    
+    <!-- entry end -->
+    <div class="entry">
+    	<label for="description">摘要介绍</label>
+    	<textarea id="description" name="description" ></textarea>
+    </div>
+    <!-- entry end -->
+    <div class="button">
+    	<!-- 先隐藏进度条，提交时显示 -->
+    	<span id="subm" style="visibility:hidden">
+			<img src="icons/loading.gif" >
+		</span>
+        <button id="submit">提交</button>
+    </div>
+    
+    </fieldset>
+</form>
+<!-- end of form -->
+<!-- start of popup -->
+<div id="dialog-form" title="Create new City">	
+	<form class="opened">
+	<fieldset>
+		<div class="entry">
+			<label for="countryCN" >国家</label>
+			<input class="short" type="text" name="countryCN" id="countryCN"/>			
+		</div>
+		<div class="entry">			
+			<label for="countryEN" >Country</label>
+			<input class="short" type="text" name="countryEN" id="countryEN"/>
+		</div>
+		<div class="entry">	
+			<label for="cityCN" >城市</label>
+			<input class="short" type="text" name="cityCN" id="cityCN" />
+		</div>
+		<div class="entry">	
+			<label for="cityEN" >City</label>
+			<input class="short" type="text" name="cityEN" id="cityEN" />
+		</div>
+		<div class="entry">	
+			<label for="longitude" >经度</label>
+			<input class="short" type="text" name="longitude" id="longitude" />
+		</div>
+		<div class="entry">	
+			<label for="latitude" >纬度</label>
+			<input class="short" type="text" name="latitude" id="latitude" />
+		</div>
+	</fieldset>
+	</form>
+</div>
+<!-- end of popup -->
+</body>
+</html>
